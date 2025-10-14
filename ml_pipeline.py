@@ -353,7 +353,9 @@ class MLPipeline:
         metadata = {
             'best_model_name': self.best_model_name,
             'model_results': self.model_results,
-            'feature_importances': self.feature_importances
+            'feature_importances': self.feature_importances,
+            'roc_curves': self.roc_curves,
+            'confusion_matrices': self.confusion_matrices
         }
         joblib.dump(metadata, model_path.replace('.joblib', '_metadata.joblib'))
     
@@ -371,8 +373,11 @@ class MLPipeline:
             self.best_model_name = metadata.get('best_model_name', 'Unknown')
             self.model_results = metadata.get('model_results', {})
             self.feature_importances = metadata.get('feature_importances', {})
+            self.roc_curves = metadata.get('roc_curves', {})
+            self.confusion_matrices = metadata.get('confusion_matrices', {})
             print(f"✓ Loaded model metadata: {self.best_model_name}")
             print(f"✓ Model results available: {len(self.model_results)} models")
+            print(f"✓ ROC curves available: {len(self.roc_curves)} models")
         except Exception as e:
             print(f"Warning: Could not load model metadata: {e}")
             self.best_model_name = 'Unknown'
