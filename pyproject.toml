@@ -1,7 +1,10 @@
+[tool.poetry]
+package-mode = false
+
 [project]
-name = "repl-nix-workspace"
-version = "0.1.0"
-description = "Add your description here"
+name = "pyloscan"
+version = "1.0.0"
+description = "PyloScan - AI-powered H. Pylori infection prediction system"
 requires-python = ">=3.11"
 dependencies = [
     "google-genai>=1.43.0",
