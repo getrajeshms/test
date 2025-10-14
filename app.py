@@ -13,7 +13,7 @@ from model_utils import ModelUtils
 
 # Set page configuration
 st.set_page_config(
-    page_title="H. Pylori Infection Prediction System",
+    page_title="PyloScan - H. Pylori Infection Prediction",
     page_icon="🔬",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -722,7 +722,7 @@ Focus on personalization based on the patient's specific risk factors, lab value
     
     def run(self):
         """Main application runner"""
-        st.markdown('<h1 class="main-header">🔬 H. Pylori Infection Prediction System</h1>', 
+        st.markdown('<h1 class="main-header">🔬 <span style="color: #1f77b4; font-weight: bold;">PyloScan</span> - H. Pylori Infection Prediction System</h1>', 
                    unsafe_allow_html=True)
         
         # Initialize session state
@@ -757,7 +757,7 @@ Focus on personalization based on the patient's specific risk factors, lab value
         st.markdown("---")
         st.markdown("""
         <div style="text-align: center; color: #666; font-size: 0.9em;">
-            H. Pylori Infection Prediction System | 
+            <span style="color: #1f77b4; font-weight: bold;">PyloScan</span> - H. Pylori Infection Prediction System | 
             Clinical Decision Support Tool | Powered by A1Intercept Technologies
         </div>
         <div style="text-align: center; color: #999; font-size: 0.8em; margin-top: 0.5rem;">
