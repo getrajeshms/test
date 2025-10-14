@@ -476,33 +476,31 @@ class HPyloriApp:
         </div>
         """, unsafe_allow_html=True)
         
-        # Optional: Advanced AI recommendations if configured
+        # AI Treatment Recommendations (automatic if configured)
         ai_configured = st.session_state.get('openai_configured', False) or st.session_state.get('gemini_configured', False)
         
         if ai_configured:
-            # Keep expander open if there's a recommendation to show
-            has_recommendation = 'last_ai_recommendation' in st.session_state and st.session_state.get('last_ai_recommendation')
+            st.markdown("---")
+            st.subheader("🤖 AI-Powered Personalized Treatment Recommendations")
             
-            with st.expander("🤖 Get Detailed AI-Powered Personalized Recommendations", expanded=has_recommendation):
-                if st.button("Generate AI Treatment Recommendation", type="primary", key="generate_ai_rec"):
-                    with st.spinner("Analyzing patient profile and generating personalized recommendations..."):
-                        try:
-                            # Get API keys from session state
-                            openai_key = st.session_state.get('custom_openai_key', '')
-                            gemini_key = st.session_state.get('custom_gemini_key', '')
-                            preferred_ai = st.session_state.get('preferred_ai', 'auto')
-                            
-                            # Initialize clients with session state keys
-                            import google.genai as genai
-                            from openai import OpenAI
-                            
-                            # Build comprehensive patient profile for AI
-                            smoking_map = {0: "None", 1: "1-5/day", 2: "6-10/day", 3: ">10/day"}
-                            alcohol_map = {0: "None", 1: "Monthly", 2: "Weekly", 3: "3+/Weekly"}
-                            handwash_map = {0: "Rarely", 1: "Now & then", 2: "Frequent", 3: "Daily"}
-                            food_map = {0: "Rare", 1: "Now & then", 2: "Frequent", 3: "Daily"}
-                            
-                            patient_profile = f"""
+            with st.spinner("Generating AI-powered personalized recommendations..."):
+                try:
+                    # Get API keys from session state
+                    openai_key = st.session_state.get('custom_openai_key', '')
+                    gemini_key = st.session_state.get('custom_gemini_key', '')
+                    preferred_ai = st.session_state.get('preferred_ai', 'auto')
+                    
+                    # Initialize clients with session state keys
+                    import google.genai as genai
+                    from openai import OpenAI
+                    
+                    # Build comprehensive patient profile for AI
+                    smoking_map = {0: "None", 1: "1-5/day", 2: "6-10/day", 3: ">10/day"}
+                    alcohol_map = {0: "None", 1: "Monthly", 2: "Weekly", 3: "3+/Weekly"}
+                    handwash_map = {0: "Rarely", 1: "Now & then", 2: "Frequent", 3: "Daily"}
+                    food_map = {0: "Rare", 1: "Now & then", 2: "Frequent", 3: "Daily"}
+                    
+                    patient_profile = f"""
 **PATIENT PROFILE:**
 
 Demographics:
@@ -538,8 +536,8 @@ Endoscopic Findings:
 - H. Pylori Infection Probability: {risk_prob:.1%}
 - Risk Level: {risk_level}
 """
-                            
-                            prompt = f"""You are an experienced gastroenterologist providing personalized, evidence-based treatment recommendations for H. pylori infection.
+                    
+                    prompt = f"""You are an experienced gastroenterologist providing personalized, evidence-based treatment recommendations for H. pylori infection.
 
 {patient_profile}
 
@@ -557,58 +555,50 @@ Based on this comprehensive patient profile, provide detailed, personalized trea
 
 Focus on personalization based on the patient's specific risk factors, lab values, and lifestyle. Be specific and actionable for clinical decision-making."""
 
-                            ai_recommendation = None
-                            
-                            if preferred_ai == "OpenAI GPT" and openai_key:
-                                client = OpenAI(api_key=openai_key)
-                                response = client.chat.completions.create(
-                                    model="gpt-4o-mini",
-                                    messages=[{
-                                        "role": "system",
-                                        "content": "You are an experienced gastroenterologist specializing in H. pylori management. Provide evidence-based, personalized treatment recommendations following current clinical guidelines."
-                                    }, {
-                                        "role": "user", 
-                                        "content": prompt
-                                    }],
-                                    max_completion_tokens=1500
-                                )
-                                ai_recommendation = response.choices[0].message.content
-                            elif preferred_ai == "Google Gemini" and gemini_key:
-                                client = genai.Client(api_key=gemini_key)
-                                response = client.models.generate_content(
-                                    model="gemini-2.0-flash-exp",
-                                    contents=prompt
-                                )
-                                ai_recommendation = response.text
-                            
-                            if ai_recommendation:
-                                # Store in session state so it persists
-                                st.session_state['last_ai_recommendation'] = ai_recommendation
-                                st.session_state['ai_provider_used'] = preferred_ai
-                            else:
-                                st.warning("⚠️ Please configure API key in the sidebar")
-                                
-                        except Exception as e:
-                            st.error(f"❌ AI service error: {str(e)}")
-                            st.info("Please verify your API key is valid and has sufficient credits.")
-                
-                # Display stored recommendation if it exists
-                if 'last_ai_recommendation' in st.session_state and st.session_state['last_ai_recommendation']:
-                    st.markdown("---")
-                    st.markdown(f"### 🤖 AI-Powered Personalized Treatment Plan")
-                    st.markdown(f"*Generated using {st.session_state.get('ai_provider_used', 'AI')}*")
-                    st.markdown(st.session_state['last_ai_recommendation'])
+                    ai_recommendation = None
                     
-                    # Add disclaimer
-                    st.markdown("---")
-                    st.warning("""
-                    **⚠️ IMPORTANT DISCLAIMER:**  
-                    This AI-generated recommendation is for educational purposes and clinical decision support only. 
-                    Always use professional medical judgment and consider individual patient circumstances. 
-                    This should not replace comprehensive clinical evaluation and consultation.
-                    """)
+                    if preferred_ai == "OpenAI GPT" and openai_key:
+                        client = OpenAI(api_key=openai_key)
+                        response = client.chat.completions.create(
+                            model="gpt-4o-mini",
+                            messages=[{
+                                "role": "system",
+                                "content": "You are an experienced gastroenterologist specializing in H. pylori management. Provide evidence-based, personalized treatment recommendations following current clinical guidelines."
+                            }, {
+                                "role": "user", 
+                                "content": prompt
+                            }],
+                            max_completion_tokens=1500
+                        )
+                        ai_recommendation = response.choices[0].message.content
+                    elif preferred_ai == "Google Gemini" and gemini_key:
+                        client = genai.Client(api_key=gemini_key)
+                        response = client.models.generate_content(
+                            model="gemini-2.0-flash-exp",
+                            contents=prompt
+                        )
+                        ai_recommendation = response.text
+                    
+                    if ai_recommendation:
+                        st.markdown(f"*Generated using {preferred_ai}*")
+                        st.markdown(ai_recommendation)
+                        
+                        # Add disclaimer
+                        st.markdown("---")
+                        st.warning("""
+                        **⚠️ IMPORTANT DISCLAIMER:**  
+                        This AI-generated recommendation is for educational purposes and clinical decision support only. 
+                        Always use professional medical judgment and consider individual patient circumstances. 
+                        This should not replace comprehensive clinical evaluation and consultation.
+                        """)
+                    else:
+                        st.warning("⚠️ Please configure API key in the sidebar to get AI recommendations")
+                        
+                except Exception as e:
+                    st.error(f"❌ AI service error: {str(e)}")
+                    st.info("Please verify your API key is valid and has sufficient credits.")
         else:
-            st.info("💡 **Optional:** Configure OpenAI or Gemini API keys in the sidebar for advanced AI-powered personalized treatment recommendations")
+            st.info("💡 **Optional:** Configure OpenAI or Gemini API keys in the sidebar for AI-powered personalized treatment recommendations")
     
     def render_model_performance(self):
         """Render model performance metrics"""
