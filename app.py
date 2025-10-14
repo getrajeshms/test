@@ -71,31 +71,21 @@ class HPyloriApp:
                 return False
         return False
     
-    def train_new_model(self):
-        """Train a new model with synthetic data"""
-        with st.spinner("Generating synthetic data and training models..."):
-            # Generate synthetic data
-            data = generate_synthetic_data(1000)
-            
-            # Initialize and train ML pipeline
-            self.ml_pipeline = MLPipeline()
-            results = self.ml_pipeline.train_models(data)
-            
-            # Save the best model
-            os.makedirs('models', exist_ok=True)
-            self.ml_pipeline.save_model('models/best_model.joblib', 'models/preprocessor.joblib')
-            
-            return results
 
     def render_sidebar(self):
         """Render sidebar for navigation"""
         st.sidebar.title("🔬 H. Pylori Prediction")
         
+        # Display model info in sidebar
+        if self.ml_pipeline and hasattr(self.ml_pipeline, 'best_model_name'):
+            st.sidebar.info(f"**Model:** {self.ml_pipeline.best_model_name}")
+            if hasattr(self.ml_pipeline, 'model_results') and self.ml_pipeline.best_model_name in self.ml_pipeline.model_results:
+                metrics = self.ml_pipeline.model_results[self.ml_pipeline.best_model_name]
+                st.sidebar.metric("ROC-AUC", f"{metrics['roc_auc']:.3f}")
+        
         pages = [
             "Patient Prediction",
             "Model Performance",
-            "Data Generation & Training",
-            "Feature Analysis",
             "AI Settings"
         ]
         
@@ -435,119 +425,6 @@ class HPyloriApp:
                 )
                 st.plotly_chart(fig_cm, use_container_width=True)
     
-    def render_data_training(self):
-        """Render data generation and training interface"""
-        st.subheader("🔬 Data Generation & Model Training")
-        
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            st.write("### Generate New Training Data")
-            n_samples = st.number_input(
-                "Number of samples to generate", 
-                min_value=100, 
-                max_value=5000, 
-                value=1000, 
-                step=100
-            )
-            
-            if st.button("Generate Synthetic Data", type="primary"):
-                with st.spinner("Generating synthetic data..."):
-                    data = generate_synthetic_data(n_samples)
-                    st.success(f"Generated {len(data)} synthetic patient records!")
-                    
-                    # Show data preview
-                    st.write("### Data Preview")
-                    st.dataframe(data.head(), use_container_width=True)
-                    
-                    # Show data statistics
-                    st.write("### Data Statistics")
-                    col_stats1, col_stats2 = st.columns(2)
-                    
-                    with col_stats1:
-                        st.write("**Target Distribution**")
-                        target_dist = data['H_Pylori_Infection'].value_counts()
-                        fig_target = px.pie(
-                            values=target_dist.values,
-                            names=['No Infection', 'Infection'],
-                            title='H. Pylori Infection Distribution'
-                        )
-                        st.plotly_chart(fig_target, use_container_width=True)
-                    
-                    with col_stats2:
-                        st.write("**Age Distribution**")
-                        fig_age = px.histogram(
-                            data, x='Age', 
-                            title='Age Distribution',
-                            nbins=20
-                        )
-                        st.plotly_chart(fig_age, use_container_width=True)
-        
-        with col2:
-            st.write("### Train ML Models")
-            
-            if st.button("Train New Models", type="secondary"):
-                results = self.train_new_model()
-                st.success("Model training completed!")
-                
-                # Display results
-                st.write("### Training Results")
-                results_df = pd.DataFrame(results).T
-                st.dataframe(results_df, use_container_width=True)
-                
-                # Plot comparison
-                fig_comparison = px.bar(
-                    x=list(results.keys()),
-                    y=[results[model]['roc_auc'] for model in results.keys()],
-                    title='Model Performance Comparison (ROC-AUC)',
-                    labels={'x': 'Model', 'y': 'ROC-AUC Score'}
-                )
-                st.plotly_chart(fig_comparison, use_container_width=True)
-    
-    def render_feature_analysis(self):
-        """Render feature analysis"""
-        st.subheader("🔍 Feature Analysis & Data Insights")
-        
-        # Generate sample data for analysis
-        if st.button("Load Sample Data for Analysis"):
-            with st.spinner("Loading data..."):
-                data = generate_synthetic_data(1000)
-                
-                st.write("### Correlation Analysis")
-                
-                # Select numeric columns for correlation
-                numeric_cols = data.select_dtypes(include=[np.number]).columns
-                corr_matrix = data[numeric_cols].corr()
-                
-                fig_corr = px.imshow(
-                    corr_matrix,
-                    title="Feature Correlation Matrix",
-                    color_continuous_scale='RdBu',
-                    aspect="auto"
-                )
-                st.plotly_chart(fig_corr, use_container_width=True)
-                
-                # Feature distributions by target
-                st.write("### Feature Distributions by H. Pylori Status")
-                
-                key_features = ['Age', 'BMI', 'Albumin', 'WBC_Count', 'Hemoglobin']
-                
-                for feature in key_features:
-                    if feature in data.columns:
-                        fig_dist = px.box(
-                            data, 
-                            x='H_Pylori_Infection', 
-                            y=feature,
-                            title=f'{feature} Distribution by H. Pylori Status',
-                            labels={'H_Pylori_Infection': 'H. Pylori Status'}
-                        )
-                        fig_dist.update_xaxis(
-                            tickmode='array',
-                            tickvals=[0, 1],
-                            ticktext=['No Infection', 'Infection']
-                        )
-                        st.plotly_chart(fig_dist, use_container_width=True)
-    
     def render_ai_settings(self):
         """Render AI settings configuration page"""
         st.subheader("🤖 AI Settings & Configuration")
@@ -693,7 +570,7 @@ class HPyloriApp:
                 st.session_state.model_loaded = True
                 st.sidebar.success("✅ Model loaded successfully!")
             else:
-                st.sidebar.warning("⚠️ No trained model found. Please train a new model.")
+                st.sidebar.error("❌ No trained model found. Please contact your system administrator.")
         
         # Render sidebar navigation
         selected_page = self.render_sidebar()
@@ -701,6 +578,7 @@ class HPyloriApp:
         # Render selected page
         if selected_page == "Patient Prediction":
             st.header("👤 Patient Risk Assessment")
+            st.write("Enter patient information below to predict H. Pylori infection risk.")
             
             patient_data = self.render_patient_input_form()
             
@@ -710,12 +588,6 @@ class HPyloriApp:
         elif selected_page == "Model Performance":
             self.render_model_performance()
             
-        elif selected_page == "Data Generation & Training":
-            self.render_data_training()
-            
-        elif selected_page == "Feature Analysis":
-            self.render_feature_analysis()
-            
         elif selected_page == "AI Settings":
             self.render_ai_settings()
         
@@ -724,7 +596,10 @@ class HPyloriApp:
         st.markdown("""
         <div style="text-align: center; color: #666; font-size: 0.9em;">
             H. Pylori Infection Prediction System | 
-            Built with Streamlit, Scikit-learn, and AI-powered recommendations
+            Clinical Decision Support Tool | Powered by AI & Machine Learning
+        </div>
+        <div style="text-align: center; color: #999; font-size: 0.8em; margin-top: 0.5rem;">
+            ⚠️ For clinical use only. This tool assists healthcare professionals in risk assessment.
         </div>
         """, unsafe_allow_html=True)
 
