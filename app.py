@@ -284,8 +284,8 @@ class HPyloriApp:
     
     def predict_and_display_results(self, patient_data):
         """Make prediction and display results"""
-        if self.ml_pipeline is None:
-            st.error("Model not loaded. Please train the model first.")
+        if self.ml_pipeline is None or not st.session_state.get('model_loaded', False):
+            st.error("Model not loaded. The system is initializing. Please refresh the page or contact support.")
             return
         
         # Convert to DataFrame
