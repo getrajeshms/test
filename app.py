@@ -57,17 +57,25 @@ st.markdown("""
 
 class HPyloriApp:
     def __init__(self):
-        self.ml_pipeline = None
+        # Check if model is already loaded in session state
+        if 'ml_pipeline_obj' in st.session_state:
+            self.ml_pipeline = st.session_state.ml_pipeline_obj
+        else:
+            self.ml_pipeline = None
         self.model_utils = ModelUtils()
         
     def load_or_train_model(self):
-        """Load existing model or train new one"""
+        """Load existing model"""
         if os.path.exists('models/best_model.joblib') and os.path.exists('models/preprocessor.joblib'):
             try:
-                self.ml_pipeline = MLPipeline()
-                self.ml_pipeline.load_model('models/best_model.joblib', 'models/preprocessor.joblib')
+                pipeline = MLPipeline()
+                pipeline.load_model('models/best_model.joblib', 'models/preprocessor.joblib')
+                # Store in session state for persistence across page interactions
+                st.session_state.ml_pipeline_obj = pipeline
+                self.ml_pipeline = pipeline
                 return True
-            except:
+            except Exception as e:
+                st.error(f"Error loading model: {e}")
                 return False
         return False
     
@@ -354,8 +362,13 @@ class HPyloriApp:
         """Render model performance metrics"""
         st.subheader("📊 Model Performance Dashboard")
         
-        if self.ml_pipeline is None or not hasattr(self.ml_pipeline, 'model_results'):
-            st.warning("No model performance data available. Please train the model first.")
+        if self.ml_pipeline is None:
+            st.warning("No model loaded. Please contact your system administrator.")
+            return
+            
+        if not hasattr(self.ml_pipeline, 'model_results') or not self.ml_pipeline.model_results:
+            st.warning("Model performance data not available. Model loaded successfully but metrics are missing.")
+            st.info("The model can still make predictions. Go to the Patient Prediction page to use it.")
             return
         
         results = self.ml_pipeline.model_results
@@ -424,6 +437,46 @@ class HPyloriApp:
                     title=f"Confusion Matrix - {best_model_name}"
                 )
                 st.plotly_chart(fig_cm, use_container_width=True)
+        
+        # Feature Importance
+        if hasattr(self.ml_pipeline, 'feature_importances') and self.ml_pipeline.feature_importances:
+            st.write("### Feature Importance - Best Model")
+            
+            # Get feature importances for best model
+            importances = self.ml_pipeline.feature_importances.get(best_model_name)
+            
+            if importances is not None:
+                # Get feature names
+                try:
+                    feature_names = self.ml_pipeline.preprocessor.get_feature_names_out()
+                    
+                    # Create dataframe and sort by importance
+                    feat_df = pd.DataFrame({
+                        'Feature': feature_names,
+                        'Importance': importances
+                    }).sort_values('Importance', ascending=False).head(15)
+                    
+                    # Create bar chart
+                    fig_feat = go.Figure(data=[
+                        go.Bar(
+                            x=feat_df['Importance'],
+                            y=feat_df['Feature'],
+                            orientation='h',
+                            marker=dict(color='#1f77b4')
+                        )
+                    ])
+                    
+                    fig_feat.update_layout(
+                        title=f'Top 15 Most Important Features - {best_model_name}',
+                        xaxis_title='Importance',
+                        yaxis_title='Feature',
+                        height=500,
+                        yaxis=dict(autorange='reversed')
+                    )
+                    
+                    st.plotly_chart(fig_feat, use_container_width=True)
+                except Exception as e:
+                    st.info(f"Feature importance visualization not available: {e}")
     
     def render_ai_settings(self):
         """Render AI settings configuration page"""

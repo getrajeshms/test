@@ -371,8 +371,13 @@ class MLPipeline:
             self.best_model_name = metadata.get('best_model_name', 'Unknown')
             self.model_results = metadata.get('model_results', {})
             self.feature_importances = metadata.get('feature_importances', {})
-        except:
-            print("Could not load model metadata")
+            print(f"✓ Loaded model metadata: {self.best_model_name}")
+            print(f"✓ Model results available: {len(self.model_results)} models")
+        except Exception as e:
+            print(f"Warning: Could not load model metadata: {e}")
+            self.best_model_name = 'Unknown'
+            self.model_results = {}
+            self.feature_importances = {}
     
     def generate_classification_report(self, X_test, y_test):
         """
