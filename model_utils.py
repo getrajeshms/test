@@ -1,13 +1,10 @@
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
-import seaborn as sns
-from sklearn.metrics import confusion_matrix, roc_curve, auc, precision_recall_curve
-from sklearn.model_selection import learning_curve
 import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
-import shap
+from sklearn.metrics import confusion_matrix, roc_curve, auc, precision_recall_curve
+from sklearn.model_selection import learning_curve
 import warnings
 warnings.filterwarnings('ignore')
 
@@ -248,27 +245,24 @@ class ModelUtils:
     
     def create_shap_summary_plot(self, model, X_sample, feature_names=None):
         """
-        Create SHAP summary plot for model interpretation
+        Create feature importance plot for model interpretation (SHAP alternative)
         """
         try:
-            # Create SHAP explainer
-            explainer = shap.TreeExplainer(model)
-            shap_values = explainer.shap_values(X_sample)
-            
-            # If binary classification, use positive class values
-            if isinstance(shap_values, list) and len(shap_values) == 2:
-                shap_values = shap_values[1]
-            
-            # Create summary plot
-            plt.figure(figsize=(10, 6))
-            shap.summary_plot(shap_values, X_sample, feature_names=feature_names, show=False)
-            plt.title("SHAP Feature Importance Summary")
-            plt.tight_layout()
-            
-            return plt.gcf()
+            # Use model's built-in feature importance if available
+            if hasattr(model, 'feature_importances_'):
+                importances = model.feature_importances_
+                if feature_names is None:
+                    feature_names = [f'Feature {i}' for i in range(len(importances))]
+                
+                fig = self.plot_feature_importance(feature_names, importances, top_n=20,
+                                                   title="Feature Importance for Model Interpretation")
+                return fig
+            else:
+                print("Model does not have feature_importances_ attribute")
+                return None
             
         except Exception as e:
-            print(f"Could not create SHAP plot: {e}")
+            print(f"Could not create feature importance plot: {e}")
             return None
     
     def plot_calibration_curve(self, y_true, y_prob, n_bins=10, title="Calibration Curve"):

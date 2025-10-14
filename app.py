@@ -10,8 +10,6 @@ from data_generator import generate_synthetic_data
 from ml_pipeline import MLPipeline
 from ai_recommendations import get_ai_treatment_recommendation
 from model_utils import ModelUtils
-import shap
-import matplotlib.pyplot as plt
 
 # Set page configuration
 st.set_page_config(
@@ -97,7 +95,8 @@ class HPyloriApp:
             "Patient Prediction",
             "Model Performance",
             "Data Generation & Training",
-            "Feature Analysis"
+            "Feature Analysis",
+            "AI Settings"
         ]
         
         return st.sidebar.selectbox("Select Page", pages)
@@ -304,19 +303,62 @@ class HPyloriApp:
         # AI Treatment Recommendation
         st.subheader("🤖 AI-Powered Treatment Recommendations")
         
-        if st.button("Generate Treatment Recommendation", type="primary"):
-            with st.spinner("Generating personalized treatment recommendation..."):
-                try:
-                    recommendation = get_ai_treatment_recommendation(
-                        patient_data, risk_prob, risk_level
-                    )
-                    
-                    st.markdown("### 💊 Personalized Treatment Plan")
-                    st.markdown(recommendation)
-                    
-                except Exception as e:
-                    st.error(f"Could not generate AI recommendation: {str(e)}")
-                    st.info("Please ensure your API key is configured in the environment variables.")
+        # Check if AI is configured
+        ai_configured = st.session_state.get('openai_configured', False) or st.session_state.get('gemini_configured', False)
+        
+        if not ai_configured:
+            st.warning("⚠️ AI recommendations are not configured. Please go to **AI Settings** page to configure your API keys.")
+            if st.button("Go to AI Settings"):
+                st.session_state['selected_page'] = 'AI Settings'
+                st.rerun()
+        else:
+            if st.button("Generate Treatment Recommendation", type="primary"):
+                with st.spinner("Generating personalized treatment recommendation..."):
+                    try:
+                        # Get API keys from session state
+                        openai_key = st.session_state.get('custom_openai_key', '')
+                        gemini_key = st.session_state.get('custom_gemini_key', '')
+                        preferred_ai = st.session_state.get('preferred_ai', 'auto')
+                        
+                        # Determine which AI to use
+                        ai_preference = "auto"
+                        if preferred_ai == "OpenAI GPT":
+                            ai_preference = "openai"
+                        elif preferred_ai == "Google Gemini":
+                            ai_preference = "gemini"
+                        
+                        # Temporarily set environment variables for the AI function
+                        import os
+                        original_openai = os.environ.get('OPENAI_API_KEY', '')
+                        original_gemini = os.environ.get('GEMINI_API_KEY', '')
+                        
+                        if openai_key:
+                            os.environ['OPENAI_API_KEY'] = openai_key
+                        if gemini_key:
+                            os.environ['GEMINI_API_KEY'] = gemini_key
+                        
+                        try:
+                            recommendation = get_ai_treatment_recommendation(
+                                patient_data, risk_prob, risk_level, ai_preference
+                            )
+                            
+                            st.markdown("### 💊 Personalized Treatment Plan")
+                            st.markdown(recommendation)
+                        finally:
+                            # Restore original environment variables
+                            if original_openai:
+                                os.environ['OPENAI_API_KEY'] = original_openai
+                            elif 'OPENAI_API_KEY' in os.environ and not original_openai:
+                                del os.environ['OPENAI_API_KEY']
+                            
+                            if original_gemini:
+                                os.environ['GEMINI_API_KEY'] = original_gemini
+                            elif 'GEMINI_API_KEY' in os.environ and not original_gemini:
+                                del os.environ['GEMINI_API_KEY']
+                        
+                    except Exception as e:
+                        st.error(f"Could not generate AI recommendation: {str(e)}")
+                        st.info("Please check your API key configuration in AI Settings page.")
     
     def render_model_performance(self):
         """Render model performance metrics"""
@@ -506,6 +548,136 @@ class HPyloriApp:
                         )
                         st.plotly_chart(fig_dist, use_container_width=True)
     
+    def render_ai_settings(self):
+        """Render AI settings configuration page"""
+        st.subheader("🤖 AI Settings & Configuration")
+        
+        st.write("""
+        Configure your AI service provider for personalized treatment recommendations.
+        You can use either **OpenAI GPT** or **Google Gemini** for AI-powered recommendations.
+        """)
+        
+        # Check for environment variables
+        env_openai = os.environ.get("OPENAI_API_KEY", "")
+        env_gemini = os.environ.get("GEMINI_API_KEY", "")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.write("### OpenAI Configuration")
+            
+            if env_openai:
+                st.success("✅ OpenAI API key found in environment")
+                use_env_openai = st.checkbox("Use environment OpenAI key", value=True, key="use_env_openai")
+            else:
+                use_env_openai = False
+                st.info("ℹ️ No OpenAI key in environment")
+            
+            if not use_env_openai:
+                openai_key = st.text_input(
+                    "Enter OpenAI API Key",
+                    type="password",
+                    value=st.session_state.get('custom_openai_key', ''),
+                    key="openai_input",
+                    help="Get your API key from https://platform.openai.com/api-keys"
+                )
+                
+                if openai_key:
+                    st.session_state['custom_openai_key'] = openai_key
+                    st.session_state['openai_configured'] = True
+                    st.success("✅ OpenAI key configured")
+            else:
+                st.session_state['openai_configured'] = True
+                st.session_state['custom_openai_key'] = env_openai
+        
+        with col2:
+            st.write("### Google Gemini Configuration")
+            
+            if env_gemini:
+                st.success("✅ Gemini API key found in environment")
+                use_env_gemini = st.checkbox("Use environment Gemini key", value=True, key="use_env_gemini")
+            else:
+                use_env_gemini = False
+                st.info("ℹ️ No Gemini key in environment")
+            
+            if not use_env_gemini:
+                gemini_key = st.text_input(
+                    "Enter Gemini API Key",
+                    type="password",
+                    value=st.session_state.get('custom_gemini_key', ''),
+                    key="gemini_input",
+                    help="Get your API key from https://aistudio.google.com/apikey"
+                )
+                
+                if gemini_key:
+                    st.session_state['custom_gemini_key'] = gemini_key
+                    st.session_state['gemini_configured'] = True
+                    st.success("✅ Gemini key configured")
+            else:
+                st.session_state['gemini_configured'] = True
+                st.session_state['custom_gemini_key'] = env_gemini
+        
+        st.write("---")
+        st.write("### AI Provider Selection")
+        
+        ai_options = []
+        if st.session_state.get('openai_configured', False):
+            ai_options.append("OpenAI GPT")
+        if st.session_state.get('gemini_configured', False):
+            ai_options.append("Google Gemini")
+        
+        if ai_options:
+            if 'preferred_ai' not in st.session_state:
+                st.session_state['preferred_ai'] = ai_options[0]
+            
+            preferred = st.selectbox(
+                "Preferred AI Provider",
+                ai_options,
+                index=ai_options.index(st.session_state.get('preferred_ai', ai_options[0]))
+            )
+            st.session_state['preferred_ai'] = preferred
+            
+            st.success(f"✅ AI recommendations will use: **{preferred}**")
+        else:
+            st.warning("⚠️ Please configure at least one AI provider to enable treatment recommendations")
+        
+        st.write("---")
+        st.write("### Test AI Connection")
+        
+        if st.button("Test AI Connection", type="primary"):
+            if not ai_options:
+                st.error("Please configure an API key first")
+            else:
+                with st.spinner("Testing AI connection..."):
+                    try:
+                        # Import here to use session state keys
+                        import google.genai as genai
+                        from openai import OpenAI
+                        
+                        if st.session_state['preferred_ai'] == "OpenAI GPT":
+                            client = OpenAI(api_key=st.session_state.get('custom_openai_key'))
+                            response = client.chat.completions.create(
+                                model="gpt-4o-mini",
+                                messages=[{"role": "user", "content": "Say 'Connection successful'"}],
+                                max_completion_tokens=20
+                            )
+                            st.success(f"✅ OpenAI connection successful! Response: {response.choices[0].message.content}")
+                        else:
+                            client = genai.Client(api_key=st.session_state.get('custom_gemini_key'))
+                            response = client.models.generate_content(
+                                model="gemini-2.0-flash-exp",
+                                contents="Say 'Connection successful'"
+                            )
+                            st.success(f"✅ Gemini connection successful! Response: {response.text}")
+                    except Exception as e:
+                        st.error(f"❌ Connection failed: {str(e)}")
+        
+        st.write("---")
+        st.info("""
+        **Note:** Your API keys are stored only in this session and are not saved permanently. 
+        For production use, it's recommended to set them as environment variables.
+        """)
+    
     def run(self):
         """Main application runner"""
         st.markdown('<h1 class="main-header">🔬 H. Pylori Infection Prediction System</h1>', 
@@ -543,6 +715,9 @@ class HPyloriApp:
             
         elif selected_page == "Feature Analysis":
             self.render_feature_analysis()
+            
+        elif selected_page == "AI Settings":
+            self.render_ai_settings()
         
         # Footer
         st.markdown("---")
