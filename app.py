@@ -6,6 +6,7 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import joblib
 import os
+from pathlib import Path
 from data_generator import generate_synthetic_data
 from ml_pipeline import MLPipeline
 from ai_recommendations import get_ai_treatment_recommendation
@@ -57,6 +58,9 @@ st.markdown("""
 
 class HPyloriApp:
     def __init__(self):
+        # Get the directory where app.py is located
+        self.base_dir = Path(__file__).resolve().parent
+        
         # Check if model is already loaded in session state
         if 'ml_pipeline_obj' in st.session_state:
             self.ml_pipeline = st.session_state.ml_pipeline_obj
@@ -66,18 +70,26 @@ class HPyloriApp:
         
     def load_or_train_model(self):
         """Load existing model"""
-        if os.path.exists('models/best_model.joblib') and os.path.exists('models/preprocessor.joblib'):
+        # Use absolute paths based on app.py location
+        model_path = self.base_dir / 'models' / 'best_model.joblib'
+        preprocessor_path = self.base_dir / 'models' / 'preprocessor.joblib'
+        
+        if model_path.exists() and preprocessor_path.exists():
             try:
                 pipeline = MLPipeline()
-                pipeline.load_model('models/best_model.joblib', 'models/preprocessor.joblib')
+                pipeline.load_model(str(model_path), str(preprocessor_path))
                 # Store in session state for persistence across page interactions
                 st.session_state.ml_pipeline_obj = pipeline
+                st.session_state['model_loaded'] = True
                 self.ml_pipeline = pipeline
                 return True
             except Exception as e:
                 st.error(f"Error loading model: {e}")
+                st.session_state['model_loaded'] = False
                 return False
-        return False
+        else:
+            st.session_state['model_loaded'] = False
+            return False
     
 
     def render_sidebar(self):
