@@ -100,6 +100,15 @@ class HPyloriApp:
         env_openai = os.environ.get("OPENAI_API_KEY", "")
         env_gemini = os.environ.get("GEMINI_API_KEY", "")
         
+        # Auto-configure if environment keys exist (outside expanders so they always run)
+        if env_openai and 'custom_openai_key' not in st.session_state:
+            st.session_state['custom_openai_key'] = env_openai
+            st.session_state['openai_configured'] = True
+        
+        if env_gemini and 'custom_gemini_key' not in st.session_state:
+            st.session_state['custom_gemini_key'] = env_gemini
+            st.session_state['gemini_configured'] = True
+        
         # OpenAI Configuration
         with st.sidebar.expander("OpenAI Setup", expanded=False):
             if env_openai:
@@ -145,6 +154,16 @@ class HPyloriApp:
             else:
                 st.session_state['gemini_configured'] = True
                 st.session_state['custom_gemini_key'] = env_gemini
+        
+        # Check configuration status (runs even when expanders are closed)
+        has_openai = bool(st.session_state.get('custom_openai_key', ''))
+        has_gemini = bool(st.session_state.get('custom_gemini_key', ''))
+        
+        # Update configured flags based on actual key presence
+        if has_openai:
+            st.session_state['openai_configured'] = True
+        if has_gemini:
+            st.session_state['gemini_configured'] = True
         
         # AI Provider Selection
         ai_options = []
@@ -461,7 +480,10 @@ class HPyloriApp:
         ai_configured = st.session_state.get('openai_configured', False) or st.session_state.get('gemini_configured', False)
         
         if ai_configured:
-            with st.expander("🤖 Get Detailed AI-Powered Personalized Recommendations"):
+            # Keep expander open if there's a recommendation to show
+            has_recommendation = 'last_ai_recommendation' in st.session_state and st.session_state.get('last_ai_recommendation')
+            
+            with st.expander("🤖 Get Detailed AI-Powered Personalized Recommendations", expanded=has_recommendation):
                 if st.button("Generate AI Treatment Recommendation", type="primary", key="generate_ai_rec"):
                     with st.spinner("Analyzing patient profile and generating personalized recommendations..."):
                         try:
