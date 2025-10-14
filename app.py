@@ -758,7 +758,7 @@ Focus on personalization based on the patient's specific risk factors, lab value
         st.markdown("""
         <div style="text-align: center; color: #666; font-size: 0.9em;">
             H. Pylori Infection Prediction System | 
-            Clinical Decision Support Tool | Powered by AI & Machine Learning
+            Clinical Decision Support Tool | Powered by A1Intercept Technologies
         </div>
         <div style="text-align: center; color: #999; font-size: 0.8em; margin-top: 0.5rem;">
             ⚠️ For clinical use only. This tool assists healthcare professionals in risk assessment.
