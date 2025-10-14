@@ -91,10 +91,88 @@ class HPyloriApp:
                 metrics = self.ml_pipeline.model_results[self.ml_pipeline.best_model_name]
                 st.sidebar.metric("ROC-AUC", f"{metrics['roc_auc']:.3f}")
         
+        st.sidebar.markdown("---")
+        
+        # AI Configuration in Sidebar (always accessible)
+        st.sidebar.subheader("🤖 AI Configuration")
+        
+        # Check for environment variables
+        env_openai = os.environ.get("OPENAI_API_KEY", "")
+        env_gemini = os.environ.get("GEMINI_API_KEY", "")
+        
+        # OpenAI Configuration
+        with st.sidebar.expander("OpenAI Setup", expanded=False):
+            if env_openai:
+                st.success("✅ API key in environment")
+                use_env_openai = st.checkbox("Use env key", value=True, key="use_env_openai")
+            else:
+                use_env_openai = False
+                st.info("No env key found")
+            
+            if not use_env_openai:
+                openai_key = st.text_input(
+                    "OpenAI API Key",
+                    type="password",
+                    value=st.session_state.get('custom_openai_key', ''),
+                    key="openai_input"
+                )
+                if openai_key:
+                    st.session_state['custom_openai_key'] = openai_key
+                    st.session_state['openai_configured'] = True
+            else:
+                st.session_state['openai_configured'] = True
+                st.session_state['custom_openai_key'] = env_openai
+        
+        # Gemini Configuration
+        with st.sidebar.expander("Google Gemini Setup", expanded=False):
+            if env_gemini:
+                st.success("✅ API key in environment")
+                use_env_gemini = st.checkbox("Use env key", value=True, key="use_env_gemini")
+            else:
+                use_env_gemini = False
+                st.info("No env key found")
+            
+            if not use_env_gemini:
+                gemini_key = st.text_input(
+                    "Gemini API Key",
+                    type="password",
+                    value=st.session_state.get('custom_gemini_key', ''),
+                    key="gemini_input"
+                )
+                if gemini_key:
+                    st.session_state['custom_gemini_key'] = gemini_key
+                    st.session_state['gemini_configured'] = True
+            else:
+                st.session_state['gemini_configured'] = True
+                st.session_state['custom_gemini_key'] = env_gemini
+        
+        # AI Provider Selection
+        ai_options = []
+        if st.session_state.get('openai_configured', False):
+            ai_options.append("OpenAI GPT")
+        if st.session_state.get('gemini_configured', False):
+            ai_options.append("Google Gemini")
+        
+        if ai_options:
+            if 'preferred_ai' not in st.session_state:
+                st.session_state['preferred_ai'] = ai_options[0]
+            
+            preferred = st.sidebar.selectbox(
+                "AI Provider",
+                ai_options,
+                index=ai_options.index(st.session_state.get('preferred_ai', ai_options[0]))
+            )
+            st.session_state['preferred_ai'] = preferred
+            st.sidebar.success(f"✅ Using {preferred}")
+        else:
+            st.sidebar.warning("⚠️ Configure AI for recommendations")
+        
+        st.sidebar.markdown("---")
+        
+        # Page Navigation
         pages = [
             "Patient Prediction",
-            "Model Performance",
-            "AI Settings"
+            "Model Performance"
         ]
         
         return st.sidebar.selectbox("Select Page", pages)
@@ -478,136 +556,6 @@ class HPyloriApp:
                 except Exception as e:
                     st.info(f"Feature importance visualization not available: {e}")
     
-    def render_ai_settings(self):
-        """Render AI settings configuration page"""
-        st.subheader("🤖 AI Settings & Configuration")
-        
-        st.write("""
-        Configure your AI service provider for personalized treatment recommendations.
-        You can use either **OpenAI GPT** or **Google Gemini** for AI-powered recommendations.
-        """)
-        
-        # Check for environment variables
-        env_openai = os.environ.get("OPENAI_API_KEY", "")
-        env_gemini = os.environ.get("GEMINI_API_KEY", "")
-        
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            st.write("### OpenAI Configuration")
-            
-            if env_openai:
-                st.success("✅ OpenAI API key found in environment")
-                use_env_openai = st.checkbox("Use environment OpenAI key", value=True, key="use_env_openai")
-            else:
-                use_env_openai = False
-                st.info("ℹ️ No OpenAI key in environment")
-            
-            if not use_env_openai:
-                openai_key = st.text_input(
-                    "Enter OpenAI API Key",
-                    type="password",
-                    value=st.session_state.get('custom_openai_key', ''),
-                    key="openai_input",
-                    help="Get your API key from https://platform.openai.com/api-keys"
-                )
-                
-                if openai_key:
-                    st.session_state['custom_openai_key'] = openai_key
-                    st.session_state['openai_configured'] = True
-                    st.success("✅ OpenAI key configured")
-            else:
-                st.session_state['openai_configured'] = True
-                st.session_state['custom_openai_key'] = env_openai
-        
-        with col2:
-            st.write("### Google Gemini Configuration")
-            
-            if env_gemini:
-                st.success("✅ Gemini API key found in environment")
-                use_env_gemini = st.checkbox("Use environment Gemini key", value=True, key="use_env_gemini")
-            else:
-                use_env_gemini = False
-                st.info("ℹ️ No Gemini key in environment")
-            
-            if not use_env_gemini:
-                gemini_key = st.text_input(
-                    "Enter Gemini API Key",
-                    type="password",
-                    value=st.session_state.get('custom_gemini_key', ''),
-                    key="gemini_input",
-                    help="Get your API key from https://aistudio.google.com/apikey"
-                )
-                
-                if gemini_key:
-                    st.session_state['custom_gemini_key'] = gemini_key
-                    st.session_state['gemini_configured'] = True
-                    st.success("✅ Gemini key configured")
-            else:
-                st.session_state['gemini_configured'] = True
-                st.session_state['custom_gemini_key'] = env_gemini
-        
-        st.write("---")
-        st.write("### AI Provider Selection")
-        
-        ai_options = []
-        if st.session_state.get('openai_configured', False):
-            ai_options.append("OpenAI GPT")
-        if st.session_state.get('gemini_configured', False):
-            ai_options.append("Google Gemini")
-        
-        if ai_options:
-            if 'preferred_ai' not in st.session_state:
-                st.session_state['preferred_ai'] = ai_options[0]
-            
-            preferred = st.selectbox(
-                "Preferred AI Provider",
-                ai_options,
-                index=ai_options.index(st.session_state.get('preferred_ai', ai_options[0]))
-            )
-            st.session_state['preferred_ai'] = preferred
-            
-            st.success(f"✅ AI recommendations will use: **{preferred}**")
-        else:
-            st.warning("⚠️ Please configure at least one AI provider to enable treatment recommendations")
-        
-        st.write("---")
-        st.write("### Test AI Connection")
-        
-        if st.button("Test AI Connection", type="primary"):
-            if not ai_options:
-                st.error("Please configure an API key first")
-            else:
-                with st.spinner("Testing AI connection..."):
-                    try:
-                        # Import here to use session state keys
-                        import google.genai as genai
-                        from openai import OpenAI
-                        
-                        if st.session_state['preferred_ai'] == "OpenAI GPT":
-                            client = OpenAI(api_key=st.session_state.get('custom_openai_key'))
-                            response = client.chat.completions.create(
-                                model="gpt-4o-mini",
-                                messages=[{"role": "user", "content": "Say 'Connection successful'"}],
-                                max_completion_tokens=20
-                            )
-                            st.success(f"✅ OpenAI connection successful! Response: {response.choices[0].message.content}")
-                        else:
-                            client = genai.Client(api_key=st.session_state.get('custom_gemini_key'))
-                            response = client.models.generate_content(
-                                model="gemini-2.0-flash-exp",
-                                contents="Say 'Connection successful'"
-                            )
-                            st.success(f"✅ Gemini connection successful! Response: {response.text}")
-                    except Exception as e:
-                        st.error(f"❌ Connection failed: {str(e)}")
-        
-        st.write("---")
-        st.info("""
-        **Note:** Your API keys are stored only in this session and are not saved permanently. 
-        For production use, it's recommended to set them as environment variables.
-        """)
-    
     def run(self):
         """Main application runner"""
         st.markdown('<h1 class="main-header">🔬 H. Pylori Infection Prediction System</h1>', 
@@ -640,9 +588,6 @@ class HPyloriApp:
                 
         elif selected_page == "Model Performance":
             self.render_model_performance()
-            
-        elif selected_page == "AI Settings":
-            self.render_ai_settings()
         
         # Footer
         st.markdown("---")
