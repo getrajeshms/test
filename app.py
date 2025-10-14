@@ -346,95 +346,177 @@ class HPyloriApp:
         
         # Feature importance for this prediction
         if hasattr(self.ml_pipeline, 'best_model') and self.ml_pipeline.best_model is not None:
-            st.subheader("🔍 Feature Contribution Analysis")
+            st.subheader("🔍 Key Contributing Factors")
             
             try:
-                # Get feature importance
-                feature_names = self.ml_pipeline.preprocessor.get_feature_names_out()
-                X_processed = self.ml_pipeline.preprocessor.transform(patient_df)
-                
+                # Get global feature importances
                 if hasattr(self.ml_pipeline.best_model, 'feature_importances_'):
+                    feature_names = self.ml_pipeline.preprocessor.get_feature_names_out()
                     importances = self.ml_pipeline.best_model.feature_importances_
                     
-                    # Create feature importance plot
-                    importance_df = pd.DataFrame({
-                        'feature': feature_names,
-                        'importance': importances
-                    }).sort_values('importance', ascending=True).tail(10)
+                    # Get top 10 most important features overall
+                    feature_importance_pairs = list(zip(feature_names, importances))
+                    feature_importance_pairs.sort(key=lambda x: x[1], reverse=True)
+                    top_features = feature_importance_pairs[:10]
+                    
+                    # Clean feature names for display
+                    clean_features = []
+                    for feat, imp in top_features:
+                        # Remove prefix like 'num__' or 'cat__'
+                        clean_name = feat.split('__')[-1] if '__' in feat else feat
+                        clean_features.append((clean_name.replace('_', ' ').title(), imp))
+                    
+                    # Create dataframe for plotting
+                    importance_df = pd.DataFrame(clean_features, columns=['Feature', 'Importance'])
                     
                     fig_importance = px.bar(
                         importance_df, 
-                        x='importance', 
-                        y='feature',
+                        x='Importance', 
+                        y='Feature',
                         orientation='h',
-                        title='Top 10 Feature Importance for Prediction',
-                        color='importance',
+                        title='Top 10 Most Important Clinical Factors',
+                        color='Importance',
                         color_continuous_scale='viridis'
                     )
+                    fig_importance.update_layout(yaxis={'categoryorder':'total ascending'})
                     st.plotly_chart(fig_importance, use_container_width=True)
+                    
+                    # Display key patient-specific factors
+                    st.markdown("**Key Patient Factors in This Case:**")
+                    risk_factors = []
+                    if patient_data.get('Gastritis_History', 0) == 1:
+                        risk_factors.append("• Previous gastritis history")
+                    if patient_data.get('Ulcer_History', 0) == 1:
+                        risk_factors.append("• Previous ulcer disease")
+                    if patient_data.get('Family_Pylori_History', 0) == 1:
+                        risk_factors.append("• Family history of H. pylori")
+                    if patient_data.get('Smoking', 0) > 0:
+                        risk_factors.append("• Current/past smoking")
+                    if patient_data.get('BMI', 25) > 30:
+                        risk_factors.append("• Elevated BMI")
+                    
+                    if risk_factors:
+                        st.markdown("\n".join(risk_factors))
+                    else:
+                        st.markdown("• No major risk factors identified in patient history")
                 
             except Exception as e:
-                st.warning(f"Could not generate feature importance: {str(e)}")
+                st.info("Feature analysis currently unavailable")
         
-        # AI Treatment Recommendation
-        st.subheader("🤖 AI-Powered Treatment Recommendations")
+        # Clinical Treatment Recommendation
+        st.subheader("💊 Clinical Decision Support")
         
-        # Check if AI is configured
+        # Generate simple, evidence-based clinical guidance
+        def get_clinical_recommendation(risk_level, risk_prob, patient_data):
+            """Generate concise clinical recommendations for doctors"""
+            
+            recommendations = {
+                'High': {
+                    'action': '**Immediate action required:** Order confirmatory testing (stool antigen or urea breath test) and initiate empirical triple therapy pending results.',
+                    'treatment': '**Treatment:** PPI-based triple therapy (PPI + Amoxicillin + Clarithromycin) for 14 days, or quadruple therapy if clarithromycin resistance suspected.'
+                },
+                'Medium': {
+                    'action': '**Clinical evaluation recommended:** Perform diagnostic testing (stool antigen or urea breath test) to confirm infection status.',
+                    'treatment': '**Treatment:** If confirmed positive, initiate standard triple therapy (PPI + Amoxicillin + Clarithromycin) for 14 days with 4-week post-treatment follow-up.'
+                },
+                'Low': {
+                    'action': '**Routine monitoring sufficient:** Consider testing only if patient develops dyspeptic symptoms or has additional risk factors.',
+                    'treatment': '**Management:** Watchful waiting with patient education on hygiene practices and dietary modifications. Annual screening if family history present.'
+                }
+            }
+            
+            rec = recommendations[risk_level]
+            
+            # Add risk factor context
+            risk_factors = []
+            if patient_data.get('Gastritis_History', 0) == 1:
+                risk_factors.append("previous gastritis")
+            if patient_data.get('Ulcer_History', 0) == 1:
+                risk_factors.append("ulcer history")
+            if patient_data.get('Family_Pylori_History', 0) == 1:
+                risk_factors.append("family H. pylori history")
+            
+            context = f"**Risk Factors Present:** {', '.join(risk_factors)}" if risk_factors else "**Risk Factors:** None identified"
+            
+            return rec['action'], rec['treatment'], context
+        
+        action, treatment, context = get_clinical_recommendation(risk_level, risk_prob, patient_data)
+        
+        st.markdown(f"""
+        <div style="background-color: #f0f8ff; padding: 20px; border-radius: 10px; border-left: 5px solid {risk_color};">
+            <h4 style="margin-top: 0;">Evidence-Based Clinical Guidance</h4>
+            <p style="font-size: 1.05em; line-height: 1.6;">
+                {action}
+            </p>
+            <p style="font-size: 1.05em; line-height: 1.6;">
+                {treatment}
+            </p>
+            <p style="font-size: 0.95em; color: #666; margin-bottom: 0;">
+                {context}
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # Optional: Advanced AI recommendations if configured
         ai_configured = st.session_state.get('openai_configured', False) or st.session_state.get('gemini_configured', False)
         
-        if not ai_configured:
-            st.warning("⚠️ AI recommendations are not configured. Please go to **AI Settings** page to configure your API keys.")
-            if st.button("Go to AI Settings"):
-                st.session_state['selected_page'] = 'AI Settings'
-                st.rerun()
-        else:
-            if st.button("Generate Treatment Recommendation", type="primary"):
-                with st.spinner("Generating personalized treatment recommendation..."):
-                    try:
-                        # Get API keys from session state
-                        openai_key = st.session_state.get('custom_openai_key', '')
-                        gemini_key = st.session_state.get('custom_gemini_key', '')
-                        preferred_ai = st.session_state.get('preferred_ai', 'auto')
-                        
-                        # Determine which AI to use
-                        ai_preference = "auto"
-                        if preferred_ai == "OpenAI GPT":
-                            ai_preference = "openai"
-                        elif preferred_ai == "Google Gemini":
-                            ai_preference = "gemini"
-                        
-                        # Temporarily set environment variables for the AI function
-                        import os
-                        original_openai = os.environ.get('OPENAI_API_KEY', '')
-                        original_gemini = os.environ.get('GEMINI_API_KEY', '')
-                        
-                        if openai_key:
-                            os.environ['OPENAI_API_KEY'] = openai_key
-                        if gemini_key:
-                            os.environ['GEMINI_API_KEY'] = gemini_key
-                        
+        if ai_configured:
+            with st.expander("🤖 Get Advanced AI Analysis (Optional)"):
+                if st.button("Generate Detailed AI Recommendation", type="secondary"):
+                    with st.spinner("Generating comprehensive AI analysis..."):
                         try:
-                            recommendation = get_ai_treatment_recommendation(
-                                patient_data, risk_prob, risk_level, ai_preference
-                            )
+                            # Get API keys from session state
+                            openai_key = st.session_state.get('custom_openai_key', '')
+                            gemini_key = st.session_state.get('custom_gemini_key', '')
+                            preferred_ai = st.session_state.get('preferred_ai', 'auto')
                             
-                            st.markdown("### 💊 Personalized Treatment Plan")
-                            st.markdown(recommendation)
-                        finally:
-                            # Restore original environment variables
-                            if original_openai:
-                                os.environ['OPENAI_API_KEY'] = original_openai
-                            elif 'OPENAI_API_KEY' in os.environ and not original_openai:
-                                del os.environ['OPENAI_API_KEY']
+                            # Initialize clients with session state keys
+                            import google.genai as genai
+                            from openai import OpenAI
                             
-                            if original_gemini:
-                                os.environ['GEMINI_API_KEY'] = original_gemini
-                            elif 'GEMINI_API_KEY' in os.environ and not original_gemini:
-                                del os.environ['GEMINI_API_KEY']
-                        
-                    except Exception as e:
-                        st.error(f"Could not generate AI recommendation: {str(e)}")
-                        st.info("Please check your API key configuration in AI Settings page.")
+                            ai_recommendation = None
+                            
+                            if preferred_ai == "OpenAI GPT" and openai_key:
+                                client = OpenAI(api_key=openai_key)
+                                response = client.chat.completions.create(
+                                    model="gpt-4o-mini",
+                                    messages=[{
+                                        "role": "user", 
+                                        "content": f"""As a gastroenterologist, provide concise treatment guidance for:
+                                        - Risk: {risk_level} ({risk_prob:.1%})
+                                        - Age: {patient_data.get('Age')}
+                                        - Gastritis history: {'Yes' if patient_data.get('Gastritis_History') == 1 else 'No'}
+                                        - Family history: {'Yes' if patient_data.get('Family_Pylori_History') == 1 else 'No'}
+                                        
+                                        Provide: 1) Diagnostic approach 2) Treatment plan 3) Follow-up (max 200 words)"""
+                                    }],
+                                    max_completion_tokens=300
+                                )
+                                ai_recommendation = response.choices[0].message.content
+                            elif preferred_ai == "Google Gemini" and gemini_key:
+                                client = genai.Client(api_key=gemini_key)
+                                response = client.models.generate_content(
+                                    model="gemini-2.0-flash-exp",
+                                    contents=f"""As a gastroenterologist, provide concise treatment guidance for:
+                                    - Risk: {risk_level} ({risk_prob:.1%})
+                                    - Age: {patient_data.get('Age')}
+                                    - Gastritis history: {'Yes' if patient_data.get('Gastritis_History') == 1 else 'No'}
+                                    - Family history: {'Yes' if patient_data.get('Family_Pylori_History') == 1 else 'No'}
+                                    
+                                    Provide: 1) Diagnostic approach 2) Treatment plan 3) Follow-up (max 200 words)"""
+                                )
+                                ai_recommendation = response.text
+                            
+                            if ai_recommendation:
+                                st.markdown("### 📋 Detailed AI Analysis")
+                                st.markdown(ai_recommendation)
+                            else:
+                                st.warning("Please configure API key in the sidebar")
+                                
+                        except Exception as e:
+                            st.error(f"AI service error: {str(e)}")
+        else:
+            st.info("💡 **Optional:** Configure OpenAI or Gemini API keys in the sidebar for advanced AI-powered analysis")
     
     def render_model_performance(self):
         """Render model performance metrics"""
