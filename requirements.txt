@@ -1,33 +1,20 @@
-# Core Streamlit and Data
 streamlit==1.38.0
 pandas==2.2.3
 numpy==1.26.4
 scikit-learn==1.5.2
 matplotlib==3.9.2
-altair==5.3.0
-pyarrow==17.0.0
-
-# Profiling (modern version replaces pandas-profiling)
-ydata-profiling==4.7.0
+ydata-profiling==4.17.0
 visions==0.8.1
 markupsafe==2.1.3
 joblib==1.3.2
-
-# Optional: file systems
 fsspec==2024.6.1
 s3fs==2024.6.1
-
-# Transformers / AI
 torch==2.4.1
 transformers==4.43.3
 huggingface-hub==0.23.5
 accelerate==0.31.0
-
-# Networking / APIs
 requests==2.32.3
 aiohttp==3.9.5
 httpx==0.27.0
-
-# Utilities
 tqdm==4.66.4
 python-dotenv==1.0.1
